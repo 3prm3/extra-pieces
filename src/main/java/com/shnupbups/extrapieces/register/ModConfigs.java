@@ -4,7 +4,7 @@ import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.JsonPrimitive;
-import blue.endless.jankson.impl.SyntaxError;
+import blue.endless.jankson.api.SyntaxError;
 import com.shnupbups.extrapieces.ExtraPieces;
 import com.shnupbups.extrapieces.core.PieceSet;
 import com.shnupbups.extrapieces.core.PieceSets;
@@ -19,8 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class ModConfigs {
 
@@ -140,12 +139,18 @@ public class ModConfigs {
 		if (packs.length == 0) {
 			if (generateDefaultPack) {
 				ExtraPieces.log("No piece packs found, generating default!");
-				generateDefaultPack(new File(ppDir, "default.json"));
+				generateDefaultPack(defaultPack);
+				ArrayList<File> packslist = new ArrayList<>(Arrays.asList(packs));
+				packslist.add(defaultPack);
+				packs = packslist.toArray(packs);
 			} else ExtraPieces.log("No piece packs found! Why bother having Extra Pieces installed then?");
 		} else {
 			if (generateDefaultPack && (!defaultPack.exists() || forceUpdateDefaultPack || isDefaultPackOutdated(defaultPack))) {
 				ExtraPieces.log("Generating default piece pack as it either did not exist or needed updating...");
 				generateDefaultPack(defaultPack);
+				ArrayList<File> packslist = new ArrayList<>(Arrays.asList(packs));
+				packslist.add(defaultPack);
+				packs = packslist.toArray(packs);
 			}
 		}
 		for (File f : packs) {
@@ -154,6 +159,12 @@ public class ModConfigs {
 				JsonObject sets = null;
 				JsonObject vanillaPieces = null;
 				String ppVer;
+				if(pp.containsKey("required_mod")) {
+					String requiredMod = pp.get(String.class, "required_mod");
+					if(!FabricLoader.getInstance().isModLoaded(requiredMod)) {
+						continue;
+					}
+				}
 				if (!pp.containsKey("version")) {
 					sets = pp;
 					ppVer = "0.0.0";
@@ -168,9 +179,11 @@ public class ModConfigs {
 					for (Map.Entry<String, JsonElement> entry : sets.entrySet()) {
 						JsonObject jsonSet = (JsonObject) entry.getValue();
 						PieceSet.Builder psb = new PieceSet.Builder(entry.getKey(), jsonSet, f.getName());
-						setsNum++;
-						ppSetsNum++;
-						ModBlocks.registerSet(psb);
+						if(psb.shouldLoad()) {
+							setsNum++;
+							ppSetsNum++;
+							ModBlocks.registerSet(psb);
+						}
 					}
 					ExtraPieces.debugLog("Generated " + ppSetsNum + " PieceSets from piece pack " + f.getName());
 				}
@@ -181,8 +194,14 @@ public class ModConfigs {
 							Identifier base = new Identifier(jsonPiece.get(String.class, "base"));
 							Identifier type = new Identifier(jsonPiece.get(String.class, "type"));
 							Identifier piece = new Identifier(jsonPiece.get(String.class, "piece"));
-							ppVpNum++;
-							ModBlocks.registerVanillaPiece(base, type, piece);
+							boolean add = true;
+							if(jsonPiece.containsKey("required_mod")) {
+								add = FabricLoader.getInstance().isModLoaded(jsonPiece.get(String.class, "required_mod"));
+							}
+							if(add) {
+								ppVpNum++;
+								ModBlocks.registerVanillaPiece(base, type, piece);
+							}
 						} else {
 							ExtraPieces.debugLog("Invalid vanilla piece " + entry.getKey() + " in piece pack " + f.getName());
 						}

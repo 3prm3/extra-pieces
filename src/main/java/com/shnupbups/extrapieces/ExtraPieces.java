@@ -10,9 +10,8 @@ import com.shnupbups.extrapieces.register.ModConfigs;
 import com.swordglowsblue.artifice.api.Artifice;
 import com.swordglowsblue.artifice.api.ArtificeResourcePack;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.event.server.ServerStartCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.text.LiteralText;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +22,7 @@ import java.io.File;
 public class ExtraPieces implements ModInitializer {
 	public static final String mod_id = "extrapieces";
 	public static final String mod_name = "Extra Pieces";
-	public static final String piece_pack_version = "2.8.0";
+	public static final String piece_pack_version = "2.9.0";
 	public static final Logger logger = LogManager.getFormatterLogger(mod_name);
 
 	public static ArtificeResourcePack datapack;
@@ -57,7 +56,7 @@ public class ExtraPieces implements ModInitializer {
 
 	public static File getConfigDirectory() {
 		if (configDir == null) {
-			configDir = new File(FabricLoader.getInstance().getConfigDirectory(), mod_id);
+			configDir = new File(FabricLoader.getInstance().getConfigDir().toFile(), mod_id);
 			configDir.mkdirs();
 		}
 		return configDir;
@@ -97,11 +96,11 @@ public class ExtraPieces implements ModInitializer {
 		datapack = Artifice.registerData(getID("ep_data"), ModBlocks::init);
 		Registry.register(Registry.ITEM, getID("debug_item"), new DebugItem());
 
-		ServerStartCallback.EVENT.register(server -> {
+		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
 			if (ModBlocks.setBuilders.size() != PieceSets.registry.size()) {
 				for (PieceSet.Builder psb : ModBlocks.setBuilders.values()) {
 					if (!psb.isBuilt())
-						server.sendMessage(new LiteralText("Piece Set " + psb.toString() + " could not be built, make sure the base and any vanilla pieces actually exist!"));
+						System.out.println("Piece Set " + psb.toString() + " could not be built, make sure the base and any vanilla pieces actually exist!");
 				}
 			}
 		});

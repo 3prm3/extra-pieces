@@ -6,17 +6,20 @@ import com.shnupbups.extrapieces.core.PieceType;
 import com.shnupbups.extrapieces.core.PieceTypes;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityContext;
+import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.fluid.Fluids;
 import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.state.StateFactory;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.state.property.Properties;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -24,8 +27,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
-import net.minecraft.world.IWorld;
-import net.minecraft.world.ViewableWorld;
+import net.minecraft.world.WorldAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 
@@ -68,9 +70,9 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 	private final PieceSet set;
 
 	public CornerPieceBlock(PieceSet set) {
-		super(Block.Settings.copy(set.getBase()));
+		super(FabricBlockSettings.copyOf(set.getBase()).materialColor(set.getBase().getDefaultMaterialColor()));
 		this.set = set;
-		this.setDefaultState(this.stateFactory.getDefaultState().with(FACING, Direction.NORTH).with(WATERLOGGED, false));
+		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(WATERLOGGED, false));
 	}
 
 	public PieceSet getSet() {
@@ -89,7 +91,7 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 		return true;
 	}
 
-	public VoxelShape getOutlineShape(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, EntityContext verticalEntityPosition_1) {
+	public VoxelShape getOutlineShape(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, ShapeContext shapeContext_1) {
 		switch (blockState_1.get(FACING)) {
 			case EAST:
 				return EAST_SHAPE;
@@ -116,24 +118,14 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onBroken(IWorld iWorld_1, BlockPos blockPos_1, BlockState blockState_1) {
-		super.onBroken(iWorld_1, blockPos_1, blockState_1);
-		this.getBase().onBroken(iWorld_1, blockPos_1, blockState_1);
+	public void onBroken(WorldAccess worldAccess_1, BlockPos blockPos_1, BlockState blockState_1) {
+		super.onBroken(worldAccess_1, blockPos_1, blockState_1);
+		this.getBase().onBroken(worldAccess_1, blockPos_1, blockState_1);
 	}
 
 	@Override
 	public float getBlastResistance() {
 		return this.getBase().getBlastResistance();
-	}
-
-	@Override
-	public BlockRenderLayer getRenderLayer() {
-		return this.getBase().getRenderLayer();
-	}
-
-	@Override
-	public int getTickRate(ViewableWorld viewableWorld_1) {
-		return this.getBase().getTickRate(viewableWorld_1);
 	}
 
 	@Override
@@ -146,10 +138,10 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onBlockRemoved(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
-		super.onBlockRemoved(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
+	public void onStateReplaced(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
+		super.onStateReplaced(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
 		if (blockState_1.getBlock() != blockState_2.getBlock()) {
-			this.getBaseState().onBlockRemoved(world_1, blockPos_1, blockState_2, boolean_1);
+			this.getBaseState().onStateReplaced(world_1, blockPos_1, blockState_2, boolean_1);
 		}
 	}
 
@@ -164,15 +156,19 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onScheduledTick(BlockState blockState_1, World world_1, BlockPos blockPos_1, Random random_1) {
-		super.onScheduledTick(blockState_1, world_1, blockPos_1, random_1);
-		this.getBase().onScheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
+	public void scheduledTick(BlockState blockState_1, ServerWorld world_1, BlockPos blockPos_1, Random random_1) {
+		super.scheduledTick(blockState_1, world_1, blockPos_1, random_1);
+		this.getBase().scheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
 	}
 
 	@Override
-	public boolean activate(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
-		boolean a = super.activate(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
-		return a || this.getBaseState().activate(world_1, playerEntity_1, hand_1, blockHitResult_1);
+	public ActionResult onUse(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
+		ActionResult a = super.onUse(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
+		if(a.isAccepted() || this.getBaseState().onUse(world_1, playerEntity_1, hand_1, blockHitResult_1).isAccepted()) {
+			return ActionResult.SUCCESS;
+		} else {
+			return ActionResult.PASS;
+		}
 	}
 
 	@Override
@@ -199,15 +195,15 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 		return this.getDefaultState().with(FACING, direction_1).with(WATERLOGGED, fluidState_1.getFluid() == Fluids.WATER);
 	}
 
-	public BlockState getStateForNeighborUpdate(BlockState blockState_1, Direction direction_1, BlockState blockState_2, IWorld iWorld_1, BlockPos blockPos_1, BlockPos blockPos_2) {
+	public BlockState getStateForNeighborUpdate(BlockState blockState_1, Direction direction_1, BlockState blockState_2, WorldAccess worldAccess_1, BlockPos blockPos_1, BlockPos blockPos_2) {
 		if (blockState_1.get(WATERLOGGED)) {
-			iWorld_1.getFluidTickScheduler().schedule(blockPos_1, Fluids.WATER, Fluids.WATER.getTickRate(iWorld_1));
+			worldAccess_1.getFluidTickScheduler().schedule(blockPos_1, Fluids.WATER, Fluids.WATER.getTickRate(worldAccess_1));
 		}
 
-		return super.getStateForNeighborUpdate(blockState_1, direction_1, blockState_2, iWorld_1, blockPos_1, blockPos_2);
+		return super.getStateForNeighborUpdate(blockState_1, direction_1, blockState_2, worldAccess_1, blockPos_1, blockPos_2);
 	}
 
-	protected void appendProperties(StateFactory.Builder<Block, BlockState> stateFactory$Builder_1) {
+	protected void appendProperties(StateManager.Builder<Block, BlockState> stateFactory$Builder_1) {
 		stateFactory$Builder_1.add(FACING, WATERLOGGED);
 	}
 
@@ -215,12 +211,24 @@ public class CornerPieceBlock extends Block implements Waterloggable, PieceBlock
 		return blockState_1.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(blockState_1);
 	}
 
-	public boolean canPlaceAtSide(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, BlockPlacementEnvironment blockPlacementEnvironment_1) {
+	public boolean canPlaceAtSide(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, NavigationType navigationType_1) {
 		return false;
 	}
 
 	@Environment(EnvType.CLIENT)
 	public boolean isSideInvisible(BlockState blockState_1, BlockState blockState_2, Direction direction_1) {
 		return getSet().isTransparent() ? (blockState_2.getBlock() == this || super.isSideInvisible(blockState_1, blockState_2, direction_1)) : super.isSideInvisible(blockState_1, blockState_2, direction_1);
+	}
+	
+	@Override
+	public boolean emitsRedstonePower(BlockState blockState_1) {
+		return super.emitsRedstonePower(blockState_1) || this.getBaseState().emitsRedstonePower();
+	}
+	
+	@Override
+	public int getWeakRedstonePower(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, Direction direction_1) {
+		float power = (float)this.getBaseState().getWeakRedstonePower(blockView_1, blockPos_1, direction_1);
+		power = (power / 4) * 3;
+		return Math.round(power);
 	}
 }

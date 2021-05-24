@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version '0.2.5-SNAPSHOT'
+	id 'fabric-loom' version '0.4-SNAPSHOT'
 	id 'maven-publish'
 }
 
@@ -15,26 +15,26 @@ minecraft {
 
 repositories {
     maven { url "https://minecraft.curseforge.com/api/maven"}
-	maven { url "https://jitpack.io" }
+	jcenter()
 	maven { url "http://server.bbkr.space:8081/artifactory/libs-release/" }
 }
 
 dependencies {
 	//to change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v${project.tiny_version}"
 	modCompile "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modCompile "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
 	// Artifice
-	modImplementation "com.github.swordglowsblue:artifice:${project.artifice_version}"
-	include "com.github.swordglowsblue:artifice:${project.artifice_version}"
+	modImplementation "com.lettuce.fudge:artifice:${project.artifice_version}"
+	include "com.lettuce.fudge:artifice:${project.artifice_version}"
 
 	// Jankson
-	modCompile "io.github.cottonmc:Jankson:${project.jankson_version}"
-	include "io.github.cottonmc:Jankson:${project.jankson_version}"
+	modCompile "io.github.cottonmc:Jankson-Fabric:${project.jankson_version}"
+	include "io.github.cottonmc:Jankson-Fabric:${project.jankson_version}"
 	
 	// stuff for dev env
 	modImplementation "io.github.prospector:modmenu:${project.modmenu_version}"

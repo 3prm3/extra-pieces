@@ -8,21 +8,24 @@ import com.shnupbups.extrapieces.register.ModProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
+import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityContext;
+import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.fluid.Fluids;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
-import net.minecraft.state.StateFactory;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.tag.FluidTags;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -30,8 +33,8 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
-import net.minecraft.world.IWorld;
-import net.minecraft.world.ViewableWorld;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 
@@ -60,7 +63,7 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 	private final PieceSet set;
 
 	public SidingPieceBlock(PieceSet set) {
-		super(Block.Settings.copy(set.getBase()));
+		super(FabricBlockSettings.copyOf(set.getBase()).materialColor(set.getBase().getDefaultMaterialColor()));
 		this.set = set;
 		this.setDefaultState(this.getDefaultState().with(TYPE, ModProperties.SidingType.SINGLE).with(FACING_HORIZONTAL, Direction.NORTH).with(WATERLOGGED, false));
 	}
@@ -81,11 +84,11 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 		return blockState_1.get(TYPE) != ModProperties.SidingType.DOUBLE;
 	}
 
-	protected void appendProperties(StateFactory.Builder<Block, BlockState> stateFactory$Builder_1) {
+	protected void appendProperties(StateManager.Builder<Block, BlockState> stateFactory$Builder_1) {
 		stateFactory$Builder_1.add(TYPE, FACING_HORIZONTAL, WATERLOGGED);
 	}
 
-	public VoxelShape getOutlineShape(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, EntityContext verticalEntityPosition_1) {
+	public VoxelShape getOutlineShape(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, ShapeContext shapeContext_1) {
 		ModProperties.SidingType slabType_1 = blockState_1.get(TYPE);
 		Direction facing = blockState_1.get(FACING_HORIZONTAL);
 		if (slabType_1 == ModProperties.SidingType.DOUBLE) {
@@ -163,28 +166,28 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 		return blockState_1.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(blockState_1);
 	}
 
-	public boolean tryFillWithFluid(IWorld iWorld_1, BlockPos blockPos_1, BlockState blockState_1, FluidState fluidState_1) {
-		return blockState_1.get(TYPE) != ModProperties.SidingType.DOUBLE && Waterloggable.super.tryFillWithFluid(iWorld_1, blockPos_1, blockState_1, fluidState_1);
+	public boolean tryFillWithFluid(WorldAccess worldAccess_1, BlockPos blockPos_1, BlockState blockState_1, FluidState fluidState_1) {
+		return blockState_1.get(TYPE) != ModProperties.SidingType.DOUBLE && Waterloggable.super.tryFillWithFluid(worldAccess_1, blockPos_1, blockState_1, fluidState_1);
 	}
 
 	public boolean canFillWithFluid(BlockView blockView_1, BlockPos blockPos_1, BlockState blockState_1, Fluid fluid_1) {
 		return blockState_1.get(TYPE) != ModProperties.SidingType.DOUBLE && Waterloggable.super.canFillWithFluid(blockView_1, blockPos_1, blockState_1, fluid_1);
 	}
 
-	public BlockState getStateForNeighborUpdate(BlockState blockState_1, Direction direction_1, BlockState blockState_2, IWorld iWorld_1, BlockPos blockPos_1, BlockPos blockPos_2) {
+	public BlockState getStateForNeighborUpdate(BlockState blockState_1, Direction direction_1, BlockState blockState_2, WorldAccess worldAccess_1, BlockPos blockPos_1, BlockPos blockPos_2) {
 		if (blockState_1.get(WATERLOGGED) && direction_1 != blockState_1.get(FACING_HORIZONTAL).getOpposite()) {
-			iWorld_1.getFluidTickScheduler().schedule(blockPos_1, Fluids.WATER, Fluids.WATER.getTickRate(iWorld_1));
+			worldAccess_1.getFluidTickScheduler().schedule(blockPos_1, Fluids.WATER, Fluids.WATER.getTickRate(worldAccess_1));
 		}
 
-		return super.getStateForNeighborUpdate(blockState_1, direction_1, blockState_2, iWorld_1, blockPos_1, blockPos_2);
+		return super.getStateForNeighborUpdate(blockState_1, direction_1, blockState_2, worldAccess_1, blockPos_1, blockPos_2);
 	}
 
-	public boolean canPlaceAtSide(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, BlockPlacementEnvironment blockPlacementEnvironment_1) {
-		switch (blockPlacementEnvironment_1) {
+	public boolean canPlaceAtSide(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, NavigationType navigationType_1) {
+		switch (navigationType_1) {
 			case LAND:
 				return blockState_1.get(TYPE) == ModProperties.SidingType.SINGLE;
 			case WATER:
-				return blockView_1.getFluidState(blockPos_1).matches(FluidTags.WATER);
+				return blockView_1.getFluidState(blockPos_1).isIn(FluidTags.WATER);
 			default:
 				return false;
 		}
@@ -209,24 +212,14 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onBroken(IWorld iWorld_1, BlockPos blockPos_1, BlockState blockState_1) {
-		super.onBroken(iWorld_1, blockPos_1, blockState_1);
-		this.getBase().onBroken(iWorld_1, blockPos_1, blockState_1);
+	public void onBroken(WorldAccess worldAccess_1, BlockPos blockPos_1, BlockState blockState_1) {
+		super.onBroken(worldAccess_1, blockPos_1, blockState_1);
+		this.getBase().onBroken(worldAccess_1, blockPos_1, blockState_1);
 	}
 
 	@Override
 	public float getBlastResistance() {
 		return this.getBase().getBlastResistance();
-	}
-
-	@Override
-	public BlockRenderLayer getRenderLayer() {
-		return this.getBase().getRenderLayer();
-	}
-
-	@Override
-	public int getTickRate(ViewableWorld viewableWorld_1) {
-		return this.getBase().getTickRate(viewableWorld_1);
 	}
 
 	@Override
@@ -239,10 +232,10 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onBlockRemoved(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
-		super.onBlockRemoved(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
+	public void onStateReplaced(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
+		super.onStateReplaced(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
 		if (blockState_1.getBlock() != blockState_2.getBlock()) {
-			this.getBaseState().onBlockRemoved(world_1, blockPos_1, blockState_2, boolean_1);
+			this.getBaseState().onStateReplaced(world_1, blockPos_1, blockState_2, boolean_1);
 		}
 	}
 
@@ -257,20 +250,36 @@ public class SidingPieceBlock extends Block implements Waterloggable, PieceBlock
 	}
 
 	@Override
-	public void onScheduledTick(BlockState blockState_1, World world_1, BlockPos blockPos_1, Random random_1) {
-		super.onScheduledTick(blockState_1, world_1, blockPos_1, random_1);
-		this.getBase().onScheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
+	public void scheduledTick(BlockState blockState_1, ServerWorld world_1, BlockPos blockPos_1, Random random_1) {
+		super.scheduledTick(blockState_1, world_1, blockPos_1, random_1);
+		this.getBase().scheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
 	}
 
 	@Override
-	public boolean activate(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
-		boolean a = super.activate(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
-		return a || this.getBaseState().activate(world_1, playerEntity_1, hand_1, blockHitResult_1);
+	public ActionResult onUse(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
+		ActionResult a = super.onUse(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
+		if(a.isAccepted() || this.getBaseState().onUse(world_1, playerEntity_1, hand_1, blockHitResult_1).isAccepted()) {
+			return ActionResult.SUCCESS;
+		} else {
+			return ActionResult.PASS;
+		}
 	}
 
 	@Override
 	public void onDestroyedByExplosion(World world_1, BlockPos blockPos_1, Explosion explosion_1) {
 		super.onDestroyedByExplosion(world_1, blockPos_1, explosion_1);
 		this.getBase().onDestroyedByExplosion(world_1, blockPos_1, explosion_1);
+	}
+	
+	@Override
+	public boolean emitsRedstonePower(BlockState blockState_1) {
+		return super.emitsRedstonePower(blockState_1) || this.getBaseState().emitsRedstonePower();
+	}
+	
+	@Override
+	public int getWeakRedstonePower(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, Direction direction_1) {
+		float power = (float)this.getBaseState().getWeakRedstonePower(blockView_1, blockPos_1, direction_1);
+		if(blockState_1.get(TYPE).equals(ModProperties.SidingType.SINGLE)) power /= 2;
+		return Math.round(power);
 	}
 }

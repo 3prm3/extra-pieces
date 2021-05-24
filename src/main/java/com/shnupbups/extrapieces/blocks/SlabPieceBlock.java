@@ -7,15 +7,20 @@ import com.shnupbups.extrapieces.core.PieceTypes;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
+import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.minecraft.block.*;
+import net.minecraft.block.enums.SlabType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.IWorld;
-import net.minecraft.world.ViewableWorld;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.WorldView;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 
@@ -26,7 +31,7 @@ public class SlabPieceBlock extends SlabBlock implements PieceBlock {
 	private final PieceSet set;
 
 	public SlabPieceBlock(PieceSet set) {
-		super(Settings.copy(set.getBase()));
+		super(FabricBlockSettings.copyOf(set.getBase()).materialColor(set.getBase().getDefaultMaterialColor()));
 		this.set = set;
 	}
 
@@ -61,24 +66,14 @@ public class SlabPieceBlock extends SlabBlock implements PieceBlock {
 	}
 
 	@Override
-	public void onBroken(IWorld iWorld_1, BlockPos blockPos_1, BlockState blockState_1) {
-		super.onBroken(iWorld_1, blockPos_1, blockState_1);
-		this.getBase().onBroken(iWorld_1, blockPos_1, blockState_1);
+	public void onBroken(WorldAccess worldAccess_1, BlockPos blockPos_1, BlockState blockState_1) {
+		super.onBroken(worldAccess_1, blockPos_1, blockState_1);
+		this.getBase().onBroken(worldAccess_1, blockPos_1, blockState_1);
 	}
 
 	@Override
 	public float getBlastResistance() {
 		return this.getBase().getBlastResistance();
-	}
-
-	@Override
-	public BlockRenderLayer getRenderLayer() {
-		return this.getBase().getRenderLayer();
-	}
-
-	@Override
-	public int getTickRate(ViewableWorld viewableWorld_1) {
-		return this.getBase().getTickRate(viewableWorld_1);
 	}
 
 	@Override
@@ -91,10 +86,10 @@ public class SlabPieceBlock extends SlabBlock implements PieceBlock {
 	}
 
 	@Override
-	public void onBlockRemoved(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
-		super.onBlockRemoved(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
+	public void onStateReplaced(BlockState blockState_1, World world_1, BlockPos blockPos_1, BlockState blockState_2, boolean boolean_1) {
+		super.onStateReplaced(blockState_1, world_1, blockPos_1, blockState_2, boolean_1);
 		if (blockState_1.getBlock() != blockState_2.getBlock()) {
-			this.getBaseState().onBlockRemoved(world_1, blockPos_1, blockState_2, boolean_1);
+			this.getBaseState().onStateReplaced(world_1, blockPos_1, blockState_2, boolean_1);
 		}
 	}
 
@@ -109,20 +104,36 @@ public class SlabPieceBlock extends SlabBlock implements PieceBlock {
 	}
 
 	@Override
-	public void onScheduledTick(BlockState blockState_1, World world_1, BlockPos blockPos_1, Random random_1) {
-		super.onScheduledTick(blockState_1, world_1, blockPos_1, random_1);
-		this.getBase().onScheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
+	public void scheduledTick(BlockState blockState_1, ServerWorld world_1, BlockPos blockPos_1, Random random_1) {
+		super.scheduledTick(blockState_1, world_1, blockPos_1, random_1);
+		this.getBase().scheduledTick(this.getBaseState(), world_1, blockPos_1, random_1);
 	}
 
 	@Override
-	public boolean activate(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
-		boolean a = super.activate(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
-		return a || this.getBaseState().activate(world_1, playerEntity_1, hand_1, blockHitResult_1);
+	public ActionResult onUse(BlockState blockState_1, World world_1, BlockPos blockPos_1, PlayerEntity playerEntity_1, Hand hand_1, BlockHitResult blockHitResult_1) {
+		ActionResult a = super.onUse(blockState_1, world_1, blockPos_1, playerEntity_1, hand_1, blockHitResult_1);
+		if(a.isAccepted() || this.getBaseState().onUse(world_1, playerEntity_1, hand_1, blockHitResult_1).isAccepted()) {
+			return ActionResult.SUCCESS;
+		} else {
+			return ActionResult.PASS;
+		}
 	}
 
 	@Override
 	public void onDestroyedByExplosion(World world_1, BlockPos blockPos_1, Explosion explosion_1) {
 		super.onDestroyedByExplosion(world_1, blockPos_1, explosion_1);
 		this.getBase().onDestroyedByExplosion(world_1, blockPos_1, explosion_1);
+	}
+	
+	@Override
+	public boolean emitsRedstonePower(BlockState blockState_1) {
+		return super.emitsRedstonePower(blockState_1) || this.getBaseState().emitsRedstonePower();
+	}
+	
+	@Override
+	public int getWeakRedstonePower(BlockState blockState_1, BlockView blockView_1, BlockPos blockPos_1, Direction direction_1) {
+		float power = (float)this.getBaseState().getWeakRedstonePower(blockView_1, blockPos_1, direction_1);
+		if(!blockState_1.get(TYPE).equals(SlabType.DOUBLE)) power /= 2;
+		return Math.round(power);
 	}
 }

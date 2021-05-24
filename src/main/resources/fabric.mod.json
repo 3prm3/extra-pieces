@@ -1,15 +1,17 @@
 {
   "schemaVersion": 1,
   "id": "extrapieces",
-  "version": "2.8.0",
+  "version": "2.9.0",
 
   "name": "Extra Pieces",
-  "description": "Adds more block shapes to Minecraft!",
+  "description": "Adds more block shapes to Minecraft! Special thanks to coderbot, Florens Pauwels, Vaerian, jcaimeey and Zachary Wright.",
   "authors": [
     "Shnupbups"
   ],
   "contributors": [
-	"coderbot"
+	  "coderbot",
+    "Florens Pauwels",
+    "Vaerian"
   ],
   "contact": {
     "homepage": "https://www.curseforge.com/minecraft/mc-mods/extra-pieces",
